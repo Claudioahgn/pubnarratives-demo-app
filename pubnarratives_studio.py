@@ -98,19 +98,19 @@ def orchestrer_production_gemini(api_key: str, model_name: str, url_data: dict, 
     Tu es le Directeur Artistique en chef et Concepteur-Rédacteur certifié StoryBrand chez PubNarratives.
     PubNarratives crée des spots publicitaires narratifs de 45 à 60 secondes au format vertical (9:16) pour des marques e-commerce.
     
-    NICHE ACTIVE : {niche_focus} (Englobe tous les outils de soin capillaire : brosses, peignes, bonnets chauffants, bonnets en satin, serviettes microfibre, etc.).
+    NICHE ACTIVE : {niche_focus} (Englobe tous les outils de soin capillaire : brosses démêlantes, peignes, bonnets chauffants, bonnets en satin, serviettes microfibre, etc.).
     
     TON OBJECTIF :
     À partir des informations brutes de la page produit fournie, génère un livrable complet de production prêt pour le tournage et le montage.
     
     RÈGLES DE NOMENCLATURE DU PRODUIT :
     - N'invente jamais de nom de produit imaginaire. Utilise toujours la formule : "Chez [Nom de la Marque], [Nom générique du produit]".
-    - Exemple : "Chez Atelier Kambia, notre brosse démêlante flexible..." ou "Chez [Marque], ce bonnet chauffant en lin...".
+    - Exemple : "Chez Atelier Kambia, notre brosse démêlante flexible..." ou "Chez Atelier Kambia, ce bonnet en satin réversible...".
     
     RÈGLES STORYBRAND (SB7) STRICTES :
     - Le client est le HÉROS, l'outil est le GUIDE qui lui permet de remporter sa journée.
-    - Ancre le script sur une DOULEUR VISCÉRALE liée à la manipulation des cheveux texturés (casse, traction, temps perdu, déshydratation).
-    - Zéro jargon théorique : un style direct, punchy, naturel et percutant.
+    - Ancre le script sur une DOULEUR VISCÉRALE liée aux cheveux texturés (casse, traction au réveil ou au démêlage, déshydratation, friction du coton, temps perdu).
+    - Zéro jargon théorique : style direct, punchy, naturel et persuasif.
     
     RÈGLE DE MONTAGE & SÉQUENÇAGE VIDÉO :
     - Structure entre 5 et 7 séquences rythmées.
@@ -153,29 +153,47 @@ def main():
     st.markdown("Transformez l'URL d'un outil de soin capillaire en un dossier de production publicitaire complet (StoryBrand SB7 + Prompts IA + Mots-clés B-Roll).")
     st.divider()
 
-    # Barre latérale : Clé Google Gemini uniquement
+    # Détection de la clé dans les Secrets Streamlit
+    cle_secrete = ""
+    if "GEMINI_API_KEY" in st.secrets:
+        cle_secrete = st.secrets["GEMINI_API_KEY"]
+
+    # Barre latérale : Clé Google Gemini & Modèles récents
     with st.sidebar:
         st.header("🔑 Clé API Google")
-        api_key = st.text_input("Clé API Gemini", type="password", placeholder="AIzaSy...")
-        st.caption("Obtenez votre clé sur [aistudio.google.com](https://aistudio.google.com).")
+        
+        api_key_input = st.text_input(
+            "Clé API Gemini",
+            value=cle_secrete,
+            type="password",
+            placeholder="AIzaSy...",
+            help="Récupérée automatiquement depuis les Secrets Streamlit si configurée."
+        )
+        
+        if cle_secrete and api_key_input == cle_secrete:
+            st.success("✅ Clé API détectée via st.secrets")
+            
+        st.caption("Gérez ou générez vos clés sur [aistudio.google.com](https://aistudio.google.com).")
         
         model_name = st.selectbox(
             "Modèle Gemini",
-            ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-pro"],
+            ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"],
             index=0,
-            help="Gemini 2.5 Flash offre le parfait compromis entre compréhension marketing et coût ultra-réduit."
+            help="gemini-3.8-flash est le modèle recommandé par l'API pour la génération et le raisonnement long horizon."
         )
 
     # Zone centrale
     st.subheader("🔗 Produit à analyser")
     url_input = st.text_input(
         "Collez l'URL de la fiche produit :",
-        value="https://atelier-kambia.fr/products/brosse-demelante-flexible-speciale-cheveux-boucles-frises-crepus"
+        value="https://atelier-kambia.fr/products/bonnet-en-satin-reversible-avec-cordon-reglable-taille-unique"
     )
 
     if st.button("🚀 Extraire & Générer la Démo", use_container_width=True):
-        if not api_key:
-            st.error("⚠️ Veuillez renseigner votre clé API Gemini dans le panneau latéral.")
+        api_key_finale = api_key_input.strip()
+        
+        if not api_key_finale:
+            st.error("⚠️ Veuillez renseigner votre clé API Gemini (manuellement ou dans les Secrets Streamlit).")
             return
 
         with st.status("🛠️ Génération du flux publicitaire...", expanded=True) as status:
@@ -183,13 +201,13 @@ def main():
             donnees_url = extraire_donnees_url(url_input)
             
             if donnees_url["source"] == "erreur":
-                st.warning("Scraping bloqué par le site. Utilisation des paramètres de référence pour Atelier Kambia.")
-                donnees_url["texte"] = "Brosse démêlante flexible ajustable avec 8 rangées indépendantes pour cheveux texturés 3A à 4C. Élimine la traction et réduit la casse."
+                st.warning("Scraping direct limité par le site hôte. Utilisation des données contextuelles du produit.")
+                donnees_url["texte"] = f"Produit capillaire extrait depuis l'URL : {url_input}. Outil ergonomique ou de protection de la fibre (bonnet en satin, brosse démêlante ou accessoire de soin)."
 
-            st.write("2. Génération du BrandScript, du script voix off et des prompts via Google Gemini...")
+            st.write(f"2. Génération du BrandScript, du script voix off et des prompts via {model_name}...")
             try:
                 resultat = orchestrer_production_gemini(
-                    api_key=api_key,
+                    api_key=api_key_finale,
                     model_name=model_name,
                     url_data=donnees_url,
                     niche_focus="Outils et Accessoires pour Cheveux Texturés (3A à 4C)"
